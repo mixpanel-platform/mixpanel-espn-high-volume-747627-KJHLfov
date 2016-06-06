@@ -133,7 +133,7 @@ and ongoing code changes or iterations.
             var editionFilter = false,
                 platformFilter = false;
             if (params.edition === 'all' || event.properties['Edition Name'] == params.edition) editionFilter = true;
-            if (params.platform === 'all' || getPlatform(event.properties.Device) == params.platform) platformFilter = true;
+            if (params.platform === 'all' || getPlatform(event.properties.$device) == params.platform) platformFilter = true;
             return event.time > new Date() - 1000*60*60*10 && // event is within last 3 hours (with 4 hour TZ offset for EDT)
                    _.keys(engagementEvents).indexOf(event.name) > -1 && // event is among engagement events defined globally
                    editionFilter && // edition name filter is satisfied
@@ -387,7 +387,7 @@ and ongoing code changes or iterations.
             var editionFilter = false,
                 platformFilter = false;
             if (params.edition === 'all' || event.properties['Edition Name'] == params.edition) editionFilter = true;
-            if (params.platform === 'all' || getPlatform(event.properties.Device) == params.platform) platformFilter = true;
+            if (params.platform === 'all' || getPlatform(event.properties.$device) == params.platform) platformFilter = true;
             return event.time > new Date() - 1000*60*60*8 && // event is within last 3 hours (with 4 hour TZ offset for EDT)
                    _.keys(engagementEvents).indexOf(event.name) > -1 && // event is among engagement events defined globally
                    editionFilter && // edition name filter is satisfied
