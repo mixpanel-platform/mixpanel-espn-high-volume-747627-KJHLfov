@@ -204,14 +204,20 @@ h2 {
   margin: 0 20px;
   vertical-align: middle;
 }
+.prev-cell {
+  margin: 0 12px;
+}
 .prev-story-num {
-  width: 22px;
+  width: 30px;
 }
 .prev-story-headline {
-  width: 300px;
+  width: 350px;
+}
+.prev-story-stats {
+  margin: 0;
 }
 .prev-story-stat {
-  width: 95px;
+  width: 100px;
 }
 
 /* story info */
