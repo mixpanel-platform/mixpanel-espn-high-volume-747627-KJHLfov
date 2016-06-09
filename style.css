@@ -208,16 +208,16 @@ h2 {
   margin: 0 12px;
 }
 .prev-story-num {
-  width: 30px;
+  width: 35px;
 }
 .prev-story-headline {
-  width: 350px;
+  width: 330px;
 }
 .prev-story-stats {
-  margin: 0;
+  margin: 0 0 0 0px;
 }
 .prev-story-stat {
-  width: 100px;
+  width: 94px;
 }
 
 /* story info */
