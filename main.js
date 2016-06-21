@@ -359,7 +359,7 @@ function addGraph(divSelector, engagementData, referralData, prevStoryData) {
 
     var formatPercent = d3.format('.0%');
 
-    var x = d3.scaleTime()
+    var x = d3.scaleUtc()
         .range([0, width]);
 
     var y = d3.scaleLinear()
