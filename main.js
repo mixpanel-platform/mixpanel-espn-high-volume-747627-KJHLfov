@@ -7,7 +7,7 @@
 // number of slots to show
 var totalSlots = 15;
 // number of hours to look back
-var totalHours = 4;
+var totalHours = 3;
 
 // initialize jql script variables
 var storiesScript, slotsScript;
@@ -33,7 +33,7 @@ var sortDropdown = {
 };
 var sortByDropdown = {
     items: [
-        {label: 'Slot Number', value: 'slot'},
+        {label: 'Slot Number', value: 'current_slot'},
         {label: 'Engagement Score', value: 'engagement'},
         {label: 'Page Views', value: 'views'},
         {label: 'Video Starts', value: 'videos'},
@@ -85,8 +85,10 @@ $(document).ready(function() {
     });
 
     // set script variables (taken from html) after html has loaded
-    storiesScript = $.trim($('#stories-jql').html());
-    slotsScript = $.trim($('#slots-jql').html());
+    slotStoriesScript = $.trim($('#slot-stories-jql').html());
+    slotSlotsScript = $.trim($('#slot-slots-jql').html());
+    storyStoriesScript = $.trim($('#story-stories-jql').html());
+    storySlotsScript = $.trim($('#story-slots-jql').html());
     
     // populate dashboard
     $('.loading').show();
@@ -105,68 +107,105 @@ $(document).ready(function() {
 });
 
 function getAllData() {
-    var slots, stories = {};
-    // ensure jql queries occur in order, but other code can execute async
-    var slotPromise = getSlots();
-    slotPromise
-        .then(function(slotData) {
-            slots = slotData;
-            var storiesParam = _.pluck(slotData, 'current_story');
-            return getStories(storiesParam);
-        })
-        .then(function(storyData) {
-            // make stories object
-            _.each(storyData, function(story) {
-                var storyHeadline = _.keys(story)[0];
-                stories[storyHeadline] = story[storyHeadline];
+    var slots, stories;
+    var sort = $('#sort-dropdown').val();
+    var sortType = $('#sort-by-dropdown').val();
+    // collect variables
+    var platform = $('#platform-dropdown').val();
+    var edition = $('#edition-dropdown').val() == '' ? 'all' : $('#edition-dropdown').val();
+    // get data
+    if (sort === 'story') {
+        var storyPromise = getStories(platform, edition, undefined, sortType);
+        // ensure jql queries occur in order, but other code can execute async
+        storyPromise
+            .then(function(storyData) {
+                stories = storyData[0];
+                slots = _.pluck(stories, 'current_slot');
+                populateStories(stories);
+                $('.loading').hide();
+                $('.slot').show();
+            });
+    } else if (sort === 'slot') {
+        var slotPromise = getSlots(platform, edition);
+        // ensure jql queries occur in order, but other code can execute async
+        slotPromise
+            .then(function(slotData) {
+                slots = slotData;
+                stories = _.pluck(slotData, 'current_story');
+                return getStories(platform, edition, stories);
             })
-            // sort and format data
-            var sort = $('#sort-dropdown').val();
-            var sortType = $('#sort-by-dropdown').val();
-            var sortedData = sortData(sort, sortType, slots, stories);
-            // display formatted data
-            populateSlots(sortedData);
-            $('.loading').hide();
-            $('.slot').show();
-        });
+            .then(function(storyData) {
+                // format story data
+                var storyObj = {};
+                _.each(storyData, function(story) {
+                    var storyName = _.keys(story)[0];
+                    storyObj[storyName] = story[storyName];
+                });
+                // remap to original story array (necessary in the case of duplicate stories)
+                stories = _.map(stories, function(story, i) {
+                    var fullStory = {};
+                    _.each(storyObj[story], function(val, key) {
+                        fullStory[key] = val;
+                    });
+                    fullStory.current_slot = i + 1;
+                    return fullStory;
+                });
+                // sort and format data
+                var sort = $('#sort-dropdown').val();
+                var sortedData = sortData(sort, sortType, slots, stories);
+                // display formatted data
+                populateSlots(sortedData);
+                $('.loading').hide();
+                $('.slot').show();
+            });
+    }
     // retrieve data again every 120 seconds
     setTimeout(getAllData, 120000);
 }
 
-function getSlots() {
-    // collect variables
-    var platform = $('#platform-dropdown').val();
-    var edition = $('#edition-dropdown').val() == '' ? 'all' : $('#edition-dropdown').val();
-    // call slots jql
+function getSlots(platform, edition, slots) {
+    // set base params
     var slotParams = {
         max_slots: totalSlots,
         from_date: date_to_string(_.now() - 1000*60*60*totalHours),
         to_date: date_to_string(_.now() - 1000*60*60*totalHours),
         edition: edition,
         platform: platform
+    };
+    // call appropriate slots jql
+    if (slots) {
+
+    } else {
+        return new Promise(function(resolve, reject) {
+            resolve(MP.api.jql(slotSlotsScript, slotParams));
+            reject(Error('JQL Error'));
+        });
     }
-    return new Promise(function(resolve, reject) {
-        resolve(MP.api.jql(slotsScript, slotParams));
-        reject(Error('JQL Error'));
-    });
 }
 
-function getStories(stories) {
-    // collect variables
-    var platform = $('#platform-dropdown').val();
-    var edition = $('#edition-dropdown').val() == '' ? 'all' : $('#edition-dropdown').val();
-    // call stories jql
+function getStories(platform, edition, stories, sort) {
+    // set base params
     var storyParams = {
         from_date: date_to_string(_.now() - 1000*60*60*totalHours),
         to_date: date_to_string(_.now() - 1000*60*60*totalHours),
         edition: edition,
-        platform: platform,
-        stories: stories,
+        platform: platform,        
+    };
+    // call appropriate stories jql
+    if (stories) {
+        storyParams.stories = stories;
+        return new Promise(function(resolve, reject) {
+            resolve(MP.api.jql(slotStoriesScript, storyParams));
+            reject(Error('JQL Error'));
+        });
+    } else if (sort) {
+        storyParams.max_stories = totalSlots;
+        storyParams.sort = sort;
+        return new Promise(function(resolve, reject) {
+            resolve(MP.api.jql(storyStoriesScript, storyParams));
+            reject(Error('JQL Error'));
+        });
     }
-    return new Promise(function(resolve, reject) {
-        resolve(MP.api.jql(storiesScript, storyParams));
-        reject(Error('JQL Error'));
-    });
 }
 
 function sortData(sort, sortType, slotData, storyData) {
@@ -175,28 +214,20 @@ function sortData(sort, sortType, slotData, storyData) {
     var resultData = [];
     var obj = {
         slot: slotData,
-        story: storyData,
+        story: _.sortBy(storyData, item => parseInt(item.current_slot))
     }
-    sortedData = _.first(_.sortBy(obj[sort], sortType), totalSlots);
-    if (sort === 'story') {
-        _.each(sortedData, function(val, key) {
-            resultData.push({
-                slot_num: val.current_slot,
-                slot: obj.slot[val.current_slot-1],
-                story: obj.story[key]
-            });
+    sortedData = _.first(_.sortBy(obj[sort], function(item, key) {
+        if (sortType === 'current_slot') return item[sortType]; 
+        else return -1 * item[sortType];
+    }), totalSlots);
+    // loop through sorted data to produce final result 
+    _.each(sortedData, function(val, index) {
+        resultData.push({
+            slot_num: val.current_slot,
+            slot: obj.slot[val.current_slot-1],
+            story: obj.story[val.current_slot-1]
         });
-    } else if (sort === 'slot') {
-        _.each(sortedData, function(val, index) {
-            var story = {};
-            story[val.current_story] = obj.story[val.current_story];
-            resultData.push({
-                slot_num: index + 1,
-                slot: obj.slot[index],
-                story: story
-            });
-        });
-    }
+    });
     return resultData;
 }
 
@@ -205,15 +236,33 @@ function populateSlots(results) {
     $('.slot').remove();
     // add new slots and display results
     _.each(results, function(slotData) {
-        addSlot(slotData.slot_num);
+        addSlot(slotData.slot_num, slotData.slot_num);
         displaySlotInfo(slotData);
     });
 }
 
-function addSlot(num) {
+function populateStories(stories) {
+    // reset slots
+    $('.slot').remove();
+    // add new slot divs and display story results
+    _.each(stories, function(story, i) {
+        var slotDiv = i + 1;
+        addSlot(slotDiv, story.current_slot);
+        var $div = $('#slot' + slotDiv);
+        displayStory($div, story);
+    });
+    // slot information not relevant
+    $('.current-slot').hide();
+    // show story detail by default
+    $('.toggle-story').hide();
+    $('.story-detail').show();
+}
+
+function addSlot(num, slot) {
+    if (slot === 'undefined') slot = '';
     // add slot div with structure to report body
     $('<div id="slot' + num + '" class="slot">' + 
-            '<div class="slot-num">' + num + '</div>' +
+            '<div class="slot-num">' + slot + '</div>' +
             '<div class="card">' +
                 '<div class="current-slot">' + 
                     '<h2>Slot Performance</h2>' +
@@ -504,8 +553,7 @@ function addPrevStory($div, story) {
 }
 
 function displayStory($div, storyData) {
-    var story = _.keys(storyData)[0];
-    var data = storyData[story];
+    var story = storyData.current_story;
 
     // populate current story headline
     $div.find('.story-headline').text(story);
@@ -515,31 +563,31 @@ function displayStory($div, storyData) {
     // populate time stats
     $('<div class="story-stat">' +
             '<div class="stat">' +
-                new Date(data.overall_start).toISOString().substr(11,5) +
+                new Date(storyData.overall_start).toISOString().substr(11,5) +
             '</div>' +
             '<div class="label">Publish Time</div>' +
         '</div>' +
         '<div class="story-stat">' +
             '<div class="stat">' +
-                data.overall_hr + '<span class="time-label">H</span>' +
-                data.overall_min + '<span class="time-label">M</span>' +
+                storyData.overall_hr + '<span class="time-label">H</span>' +
+                storyData.overall_min + '<span class="time-label">M</span>' +
             '</div>' +
             '<div class="label">Since Publish</div>' +
         '</div>' +
         // populate engagement stat
         '<div class="story-stat">' +
             '<div class="stat">' +
-                nFormatter(data.engagement) +
+                nFormatter(storyData.engagement) +
             '</div>' +
             '<div class="label">Engagement</div>' +
         '</div>')
         .appendTo($div.find('.story-stats'));
 
     // populate story history
-    displayTable($div.find('.story-prev-slots'), data.stats);
+    displayTable($div.find('.story-prev-slots'), storyData.stats);
 
     // populate referral paths
-    displayReferrals($div.find('.story-referral-paths'), data.referral);
+    displayReferrals($div.find('.story-referral-paths'), storyData.referral);
 }
 
 function displayTable($div, tableArray) {
