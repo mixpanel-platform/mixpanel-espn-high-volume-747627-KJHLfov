@@ -515,10 +515,10 @@ h2 {
     margin: 20px 0;
   }
   .mp-graph {
-    height: 350px;
+    max-width: 500px;
   }
-  .mp-graph .graph {
-    height: 350px;
+  .mp-graph .highcharts-container {
+    max-width: 500px;
   }
 
   /* tables */
