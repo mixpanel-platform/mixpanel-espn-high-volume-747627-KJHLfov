@@ -725,7 +725,11 @@ and ongoing code changes or iterations.
           .reduce(function(accumulators, items) {
             var ret = accumulators.reduce(function(a,b) { return a.concat(b); }, []).concat(items);
             ret.sort(function(a, b) {
-              return b[params.sort] - a[params.sort];
+              if (params.sort === 'current_slot') {
+                return a[params.sort] - b[params.sort];
+              } else {
+                return b[params.sort] - a[params.sort];
+              }
             });
             return ret.slice(0, params.max_stories);
           });
